@@ -240,6 +240,13 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "go.test.profile",
+        "title": "Go Test: Profile",
+        "description": "Profile the CPU and/or memory usage of a test or benchmark",
+        "category": "Test",
+        "icon": "$(graph)"
+      },
+      {
         "command": "go.benchmark.package",
         "title": "Go: Benchmark Package",
         "description": "Runs all benchmarks in the package of the current file."
@@ -2356,6 +2363,10 @@
         {
           "command": "go.test.refresh",
           "when": "false"
+        },
+        {
+          "command": "go.test.profile",
+          "when": "false"
         }
       ],
       "editor/context": [
@@ -2444,6 +2455,11 @@
         {
           "command": "go.test.refresh",
           "when": "testId =~ /_test\\.go/",
+          "group": "inline"
+        },
+        {
+          "command": "go.test.profile",
+          "when": "testId =~ /_test\\.go\\?(test|benchmark|example)/",
           "group": "inline"
         }
       ]

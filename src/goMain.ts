@@ -104,6 +104,7 @@ import vscode = require('vscode');
 import { getFormatTool } from './goFormat';
 import { resetSurveyConfig, showSurveyConfig, timeMinute } from './goSurvey';
 import { TestExplorer } from './goTestExplorer';
+import { ProfileDocumentContentProvider } from './goToolPprof';
 
 export let buildDiagnosticCollection: vscode.DiagnosticCollection;
 export let lintDiagnosticCollection: vscode.DiagnosticCollection;
@@ -219,6 +220,10 @@ If you would like additional configuration for diagnostics from gopls, please se
 	// testing
 	const testExplorer = TestExplorer.setup(ctx);
 
+	ctx.subscriptions.push(
+		vscode.workspace.registerTextDocumentContentProvider('go-pprof', new ProfileDocumentContentProvider())
+	);
+
 	// debug
 	ctx.subscriptions.push(
 		vscode.debug.registerDebugConfigurationProvider('go', new GoDebugConfigurationProvider('go'))
@@ -331,6 +336,12 @@ If you would like additional configuration for diagnostics from gopls, please se
 	ctx.subscriptions.push(
 		vscode.commands.registerCommand('go.test.refresh', (args) => {
 			if (args) testExplorer.resolve(args);
+		})
+	);
+
+	ctx.subscriptions.push(
+		vscode.commands.registerCommand('go.test.profile', (args) => {
+			if (args) testExplorer.profile(args).catch(testExplorer.errored);
 		})
 	);
 
