@@ -8,6 +8,7 @@
   "author": {
     "name": "Go Team at Google"
   },
+  "enableProposedApi": true,
   "license": "MIT",
   "icon": "media/go-logo-blue.png",
   "categories": [

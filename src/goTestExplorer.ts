@@ -20,6 +20,7 @@ import {
 	TestRun,
 	TestRunProfileKind,
 	TestRunRequest,
+	TestTag,
 	TextDocument,
 	TextDocumentChangeEvent,
 	Uri,
@@ -40,6 +41,8 @@ import { outputChannel } from './goStatus';
 export const isVscodeTestingAPIAvailable =
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	'object' === typeof (vscode as any).tests && 'function' === typeof (vscode as any).tests.createTestController;
+
+const runnable = new TestTag('runnable');
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace TestExplorer {
@@ -131,7 +134,7 @@ export class TestExplorer {
 		public provideDocumentSymbols: (doc: TextDocument, token: CancellationToken) => Thenable<DocumentSymbol[]>
 	) {
 		ctrl.resolveHandler = (item) => this.resolve(item);
-		ctrl.createRunProfile('go test', TestRunProfileKind.Run, (rq, tok) => this.run(rq, tok), true);
+		ctrl.createRunProfile('go test', TestRunProfileKind.Run, (rq, tok) => this.run(rq, tok), true, runnable);
 	}
 
 	/* ***** Interface (external) ***** */
@@ -164,6 +167,7 @@ export class TestExplorer {
 
 		const item = this.createItem(label, uri, kind, name);
 		getChildren(parent || this.ctrl.items).add(item);
+		item.tags = [runnable];
 		return item;
 	}
 

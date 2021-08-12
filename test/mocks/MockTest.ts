@@ -19,6 +19,7 @@ import {
 	TestRunProfile,
 	TestRunProfileKind,
 	TestRunRequest,
+	TestTag,
 	TextDocument,
 	TextLine,
 	Uri,
@@ -85,6 +86,7 @@ class MockTestItem implements TestItem {
 	error?: string | MarkdownString;
 	runnable: boolean;
 	debuggable: boolean;
+	tags: readonly TestTag[] = [];
 
 	children: MockTestCollection = new MockTestCollection(this);
 
