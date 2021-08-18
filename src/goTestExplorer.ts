@@ -168,14 +168,14 @@ export class TestExplorer {
 	}
 
 	// Create or Retrieve a sub test or benchmark. The ID will be of the form:
-	//     file:///path/to/mod/file.go?test#TestXxx/A/B/C
-	getOrCreateSubTest(item: TestItem, name: string): TestItem {
-		const { fragment: parentName, query: kind } = Uri.parse(item.id);
-		const existing = this.getItem(item, item.uri, kind, `${parentName}/${name}`);
+	//     file:///path/to/mod/file.go?test#TestXxx%2fA%2fB%2fC
+	getOrCreateSubTest(item: TestItem, label: string, name: string): TestItem {
+		const { query: kind } = Uri.parse(item.id);
+		const existing = this.getItem(item, item.uri, kind, name);
 		if (existing) return existing;
 
 		item.canResolveChildren = true;
-		const sub = this.createItem(name, item.uri, kind, `${parentName}/${name}`);
+		const sub = this.createItem(label, item.uri, kind, name);
 		item.children.add(sub);
 		sub.range = item.range;
 		return sub;
@@ -270,7 +270,7 @@ export class TestExplorer {
 // - Example:   file:///path/to/mod/file.go?example#ExampleXxx
 export function testID(uri: Uri, kind: string, name?: string): string {
 	uri = uri.with({ query: kind });
-	if (name) uri = uri.with({ fragment: name });
+	if (name) uri = uri.with({ fragment: encodeURIComponent(name) });
 	return uri.toString();
 }
 
@@ -758,16 +758,23 @@ function resolveTestName(expl: TestExplorer, tests: Record<string, TestItem>, na
 		return;
 	}
 
-	const parts = name.split(/[#/]+/);
-	let test = tests[parts[0]];
-	if (!test) {
-		return;
-	}
+	const re = /[#/]+/;
+	return resolve();
 
-	for (const part of parts.slice(1)) {
-		test = expl.getOrCreateSubTest(test, part);
+	function resolve(parent?: TestItem, start = 0, length = 0): TestItem | undefined {
+		const pos = start + length;
+		const m = name.substring(pos).match(re);
+		if (!m) {
+			if (!parent) return tests[name];
+			return expl.getOrCreateSubTest(parent, name.substring(pos), name);
+		}
+
+		const subName = name.substring(0, pos + m.index);
+		const test = parent
+			? expl.getOrCreateSubTest(parent, name.substring(pos, pos + m.index), subName)
+			: tests[subName];
+		return resolve(test, pos + m.index, m[0].length);
 	}
-	return test;
 }
 
 // Process benchmark events (see test_events.md)
@@ -1004,11 +1011,12 @@ async function runTests(expl: TestExplorer, request: TestRunRequest, token: Canc
 		const benchmarks: Record<string, TestItem> = {};
 		for (const { item, explicitlyIncluded } of items) {
 			const uri = Uri.parse(item.id);
-			if (/[/#]/.test(uri.fragment)) {
-				// running sub-tests is not currently supported
-				vscode.window.showErrorMessage(`Cannot run ${uri.fragment} - running sub-tests is not supported`);
-				continue;
-			}
+			const name = decodeURIComponent(uri.fragment);
+			// if (/[/#]/.test(name) && uri.query === 'benchmark') {
+			// 	// running sub-tests is not currently supported
+			// 	vscode.window.showErrorMessage(`Cannot run ${name} - Go does not support running sub-benchmarks`);
+			// 	continue;
+			// }
 
 			// When the user clicks the run button on a package, they expect all
 			// of the tests within that package to run - they probably don't
@@ -1027,9 +1035,9 @@ async function runTests(expl: TestExplorer, request: TestRunRequest, token: Canc
 			discardChildren(item);
 
 			if (uri.query === 'benchmark') {
-				benchmarks[uri.fragment] = item;
+				benchmarks[name] = item;
 			} else {
-				tests[uri.fragment] = item;
+				tests[name] = item;
 			}
 		}
 
