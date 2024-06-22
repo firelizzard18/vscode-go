@@ -8,6 +8,7 @@ type Tail<T extends any[]> = T extends [any, ...infer Tail] ? Tail : never;
 export class GoplsBrowser {
 	readonly panel: vscode.WebviewPanel;
 	readonly #history: string[] = [];
+	#current?: string;
 
 	constructor(...options: Tail<Parameters<typeof vscode.window.createWebviewPanel>>) {
 		this.panel = vscode.window.createWebviewPanel('gopls', ...options);
@@ -37,6 +38,16 @@ export class GoplsBrowser {
 	async navigateTo(url: string) {
 		const page = vscode.Uri.parse(url);
 		const pageStr = page.with({ fragment: '' }).toString(true);
+		if (pageStr === this.#current) {
+			this.panel.webview.postMessage({
+				command: 'jump',
+				fragment: page.fragment
+			});
+			return;
+		} else {
+			this.#current = pageStr;
+		}
+
 		const base = (await vscode.env.asExternalUri(page.with({ path: '', query: '', fragment: '' })))
 			.toString(true)
 			.replace(/\/$/, '');
@@ -64,44 +75,83 @@ export class GoplsBrowser {
 		fixLinks(head, addBase);
 		fixLinks(document.getElementById('pkgsite'), addBase);
 
-		document.querySelectorAll('a').forEach((a) => {
-			const { href } = a.attributes;
-			if (!a.hasAttribute('href')) {
-				return;
-			}
-
-			// If the link is to an anchor on this page, trim it to just the #anchor
-			if (href.startsWith(`${pageStr}#`)) {
-				a.setAttribute('href', href.replace(pageStr, ''));
-				return;
-			}
-
-			// If the link is to a different page from gopls, hijack it
-			if (href.startsWith(baseStr)) {
-				a.removeAttribute('href');
-				a.setAttribute('onclick', `navigate('${href}')`);
-				a.classList.add('clicky');
-			}
-		});
-
 		// Add <base> to fix queries
 		head.appendChild(parse(`<base href="${base}" />`));
 
-		// Add <script> to capture navigation
+		// Globals
 		head.appendChild(
 			parse(`
 				<script>
-					(function() {
-						const vscode = acquireVsCodeApi();
-						window.back = () => vscode.postMessage({ command: 'back' });
-						window.navigate = (url) => vscode.postMessage({ command: 'navigate', url });
+					const vscode = acquireVsCodeApi();
 
-						window.jumpTo = (hash) => {
-							const u = new URL(location.href);
-							u.hash = hash;
-							location.href = u.toString();
+					const jumpTo = (hash) => {
+						const u = new URL(location.href);
+						u.hash = hash;
+						location.href = u.toString();
+					};
+
+					const goBack = () => {
+						if (history.length > 0) {
+							history.back();
+						} else {
+							vscode.postMessage({ command: 'back' });
 						}
-					})();
+					};
+
+					addEventListener('message', event => {
+						switch (event.data.command) {
+							case 'jump':
+								jumpTo(event.data.fragment);
+								break;
+						}
+					});
+
+					navigation.addEventListener('navigate', event => {
+						console.log('Navigate', event);
+
+						  const url = new URL(event.destination.url);
+						const [, target] = url.hash.match(/^\\#gopls=(.*)/);
+						if (!target) {
+							return;
+						}
+
+						event.intercept({
+							handler: ()  => vscode.postMessage({
+								command: 'navigate',
+								url: \`${baseStr}\${target}\`
+							}),
+						});
+					});
+				</script>
+			`)
+		);
+
+		// Capture navigation
+		head.appendChild(
+			parse(`
+				<script>
+					addEventListener('load', () => {
+						document.querySelectorAll('a[href^="${pageStr}#"]').forEach(el => {
+							const s = el.getAttribute('href');
+							el.setAttribute('href', s.replace("${pageStr}", ''))
+						})
+
+						document.querySelectorAll('a').forEach(el => {
+							el.addEventListener('click', (event) => {
+								const s = el.getAttribute('href');
+								if (!s.startsWith("${baseStr}")) {
+									return;
+								}
+
+								event.preventDefault();
+								event.stopImmediatePropagation();
+
+								const u = new URL(location.href);
+								u.hash = \`gopls=\${s.replace("${baseStr}", '')}\`;
+								navigation.navigate(u.toString());
+							})
+						})
+					})
 				</script>
 			`)
 		);
