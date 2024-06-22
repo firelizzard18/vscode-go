@@ -33,7 +33,9 @@ import {
 	ProvideCompletionItemsSignature,
 	ProvideDocumentFormattingEditsSignature,
 	ResponseError,
-	RevealOutputChannelOn
+	RevealOutputChannelOn,
+	ShowDocumentParams,
+	ShowDocumentResult
 } from 'vscode-languageclient';
 import { LanguageClient, ServerOptions } from 'vscode-languageclient/node';
 import { getGoConfig, getGoplsConfig, extensionInfo } from '../config';
@@ -63,6 +65,7 @@ import { IVulncheckTerminal, VulncheckReport, VulncheckTerminal, writeVulns } fr
 import { createHash } from 'crypto';
 import { GoExtensionContext } from '../context';
 import { GoDocumentSelector } from '../goMode';
+import { GoplsBrowser } from './browser';
 
 export interface LanguageServerConfig {
 	serverName: string;
@@ -706,6 +709,35 @@ export async function buildLanguageClient(
 							ret.push(workspaceConfig);
 						}
 						return ret;
+					}
+				},
+				window: {
+					async showDocument(params, next) {
+						// TODO: The typing for next is a lie - it doesn't
+						// actually expect us to pass a cancellation token.
+						// Also, it doesn't pass the token to us so there's not
+						// much we can do. The latest (unreleased) version of
+						// vscode-languageclient *does* pass us the token, so
+						// once that's released and we've updated, we can remove
+						// this hack.
+						const showDocument = next as (params: ShowDocumentParams) => Promise<ShowDocumentResult>;
+
+						try {
+							if (/^http:\/\/127\.0\.0\.1:\d+\/gopls/.test(params.uri)) {
+								const browser = new GoplsBrowser('gopls', vscode.ViewColumn.Active, {
+									enableScripts: true,
+									retainContextWhenHidden: true,
+									enableFindWidget: true
+								});
+								await browser.navigateTo(params.uri);
+								return { success: true };
+							}
+						} catch (error) {
+							// If this fails, try opening the normal way
+							console.log(error);
+						}
+
+						return showDocument(params);
 					}
 				}
 			}

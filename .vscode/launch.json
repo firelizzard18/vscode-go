@@ -17,7 +17,8 @@
 			"runtimeExecutable": "${execPath}",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--disable-extensions"
+				"--disable-extensions",
+				"--disable-site-isolation-trials"
 			],
 			"outFiles": [
                 "${workspaceFolder}/extension/dist/**/*.js"
