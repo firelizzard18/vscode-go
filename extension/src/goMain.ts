@@ -73,6 +73,7 @@ import * as commands from './commands';
 import { toggleVulncheckCommandFactory } from './goVulncheck';
 import { GoTaskProvider } from './goTaskProvider';
 import { telemetryReporter } from './goTelemetry';
+import { GoplsBrowser } from './language/browser';
 
 const goCtx: GoExtensionContext = {};
 
@@ -130,6 +131,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 	const registerCommand = commands.createRegisterCommand(ctx, goCtx);
 	registerCommand('go.languageserver.restart', commands.startLanguageServer);
 	registerCommand('go.languageserver.maintain', commands.startGoplsMaintainerInterface);
+	GoplsBrowser.activate(ctx);
 
 	await maybeInstallImportantTools(cfg.get('alternateTools'));
 	await commands.startLanguageServer(ctx, goCtx)(RestartReason.ACTIVATION);

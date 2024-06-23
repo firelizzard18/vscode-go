@@ -274,6 +274,11 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "gopls.docBrowser.jumpTo",
+        "title": "Go Doc: Jump To",
+        "when": "gopls.showDocBrowser"
+      },
+      {
         "command": "go.test.showProfiles",
         "title": "Go Test: Show Last Profile",
         "description": "Show last captured profile",
@@ -2767,6 +2772,12 @@
           "name": "go",
           "icon": "media/go-logo-white.svg",
           "when": "go.showExplorer"
+        },
+        {
+          "id": "gopls.docBrowser",
+          "name": "Go Doc",
+          "icon": "media/go-logo-white.svg",
+          "when": "gopls.showDocBrowser"
         }
       ],
       "test": [

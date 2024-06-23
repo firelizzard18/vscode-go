@@ -725,7 +725,7 @@ export async function buildLanguageClient(
 
 						try {
 							if (/^http:\/\/127\.0\.0\.1:\d+\/gopls/.test(params.uri)) {
-								new GoplsBrowser(ctx, params.uri, 'gopls', vscode.ViewColumn.Active, {
+								new GoplsBrowser(params.uri, 'gopls', vscode.ViewColumn.Active, {
 									enableScripts: true,
 									retainContextWhenHidden: true,
 									enableFindWidget: true
