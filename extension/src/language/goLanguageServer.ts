@@ -724,12 +724,11 @@ export async function buildLanguageClient(
 
 						try {
 							if (/^http:\/\/127\.0\.0\.1:\d+\/gopls/.test(params.uri)) {
-								const browser = new GoplsBrowser('gopls', vscode.ViewColumn.Active, {
+								const browser = new GoplsBrowser(params.uri, 'gopls', vscode.ViewColumn.Active, {
 									enableScripts: true,
 									retainContextWhenHidden: true,
 									enableFindWidget: true
 								});
-								await browser.navigateTo(params.uri);
 								return { success: true };
 							}
 						} catch (error) {

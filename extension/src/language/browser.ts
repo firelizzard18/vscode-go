@@ -7,35 +7,49 @@ type Tail<T extends any[]> = T extends [any, ...infer Tail] ? Tail : never;
 
 export class GoplsBrowser {
 	readonly panel: vscode.WebviewPanel;
-	readonly #history: string[] = [];
-	#current?: string;
 
-	constructor(...options: Tail<Parameters<typeof vscode.window.createWebviewPanel>>) {
+	constructor(url: string, ...options: Tail<Parameters<typeof vscode.window.createWebviewPanel>>) {
 		this.panel = vscode.window.createWebviewPanel('gopls', ...options);
 
 		this.panel.webview.onDidReceiveMessage(async (e) => {
-			if (typeof e !== 'object' || !e) return;
-			try {
-				switch (e.command) {
-					case 'back':
-						if (this.#history.length < 2) {
-							return;
-						}
-						this.#history.pop();
-						await this.navigateTo(this.#history.pop()!);
-						break;
+			switch (e.command) {
+				case 'navigate':
+					this.#push(e.url);
+					break;
 
-					case 'navigate':
-						await this.navigateTo(e.url);
-						break;
-				}
-			} catch (error) {
-				vscode.window.showWarningMessage(`Navigation failed: ${error}`);
+				case 'back':
+					this.#pop();
+					break;
 			}
 		});
+
+		this.#push(url);
 	}
 
-	async navigateTo(url: string) {
+	readonly #history: string[] = [];
+	#current?: string;
+
+	#push(url: string) {
+		this.#load(url)
+			.then((r) => r !== false && this.#history.push(url))
+			.catch((e) => this.#onError(e));
+	}
+
+	#pop() {
+		if (this.#history.length < 2) {
+			return;
+		}
+
+		this.#history.pop();
+		const url = this.#history[this.#history.length - 1];
+		this.#load(url).catch((e) => this.#onError(e));
+	}
+
+	#onError(error: unknown) {
+		console.error('Navigation failed', error);
+	}
+
+	async #load(url: string) {
 		const page = vscode.Uri.parse(url);
 		const pageStr = page.with({ fragment: '' }).toString(true);
 		if (pageStr === this.#current) {
@@ -57,10 +71,7 @@ export class GoplsBrowser {
 
 		// If the response is empty, assume it was opening a source file and
 		// ignore it
-		if (!data) return;
-
-		// Track history
-		this.#history.push(url);
+		if (!data) return false;
 
 		// Process the response
 		const document = parse(data);
@@ -84,19 +95,9 @@ export class GoplsBrowser {
 				<script>
 					const vscode = acquireVsCodeApi();
 
-					const jumpTo = (hash) => {
-						const u = new URL(location.href);
-						u.hash = hash;
-						location.href = u.toString();
-					};
-
-					const goBack = () => {
-						if (history.length > 0) {
-							history.back();
-						} else {
-							vscode.postMessage({ command: 'back' });
-						}
-					};
+					const goTo = (url) => vscode.postMessage({ command: 'navigate', url });
+					const goBack = () => vscode.postMessage({ command: 'back' });
+					const jumpTo = (hash) => location.hash = hash;
 
 					addEventListener('message', event => {
 						switch (event.data.command) {
@@ -104,23 +105,6 @@ export class GoplsBrowser {
 								jumpTo(event.data.fragment);
 								break;
 						}
-					});
-
-					navigation.addEventListener('navigate', event => {
-						console.log('Navigate', event);
-
-						  const url = new URL(event.destination.url);
-						const [, target] = url.hash.match(/^\\#gopls=(.*)/);
-						if (!target) {
-							return;
-						}
-
-						event.intercept({
-							handler: ()  => vscode.postMessage({
-								command: 'navigate',
-								url: \`${baseStr}\${target}\`
-							}),
-						});
 					});
 				</script>
 			`)
@@ -136,19 +120,17 @@ export class GoplsBrowser {
 							el.setAttribute('href', s.replace("${pageStr}", ''))
 						})
 
-						document.querySelectorAll('a').forEach(el => {
+						document.querySelectorAll('a[href^="#"]').forEach(el => {
 							el.addEventListener('click', (event) => {
-								const s = el.getAttribute('href');
-								if (!s.startsWith("${baseStr}")) {
-									return;
-								}
+								goTo("${pageStr}" + el.getAttribute('href'));
+							})
+						})
 
+						document.querySelectorAll('a:not([href^="#"])').forEach(el => {
+							el.addEventListener('click', (event) => {
 								event.preventDefault();
 								event.stopImmediatePropagation();
-
-								const u = new URL(location.href);
-								u.hash = \`gopls=\${s.replace("${baseStr}", '')}\`;
-								navigation.navigate(u.toString());
+								goTo(el.getAttribute('href'));
 							})
 						})
 					})
