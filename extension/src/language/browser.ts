@@ -186,11 +186,6 @@ export class GoplsBrowser {
 		fixLinks(head, addBase);
 		fixLinks(document.getElementById('pkgsite'), addBase);
 
-		// If there's an anchor, jump to it
-		if (page.fragment) {
-			document.appendChild(parse(`<script>jumpTo("${page.fragment}")</script>`));
-		}
-
 		// Add <base> to fix queries
 		head.appendChild(parse(`<base href="${base}" />`));
 
@@ -201,18 +196,11 @@ export class GoplsBrowser {
 		head.appendChild(parse(`<script src="${this.#contentUri('main.js')}"></script>`));
 		head.appendChild(parse(`<link rel="stylesheet" href="${this.#contentUri('main.css')}" />`));
 
-		// Add navigation widget
-		document.appendChild(
-			parse(`
-				<nav>
-					<ul>
-						<li onclick="goBack()">⇽</li>
-						<li onclick="reload()">⟳</li>
-						<li onclick="goForward()">⇾</li>
-					</ul>
-				</nav>
-			`)
-		);
+		// Add navigation widget (populated by main.js)
+		document.appendChild(parse('<nav></nav>'));
+
+		// Call the post-load function
+		document.appendChild(parse(`<script>didLoad("${page.fragment}")</script>`));
 
 		// Check for gopls navigation
 		const selector = document.querySelector('header > select');

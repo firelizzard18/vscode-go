@@ -18,7 +18,11 @@ addEventListener('message', event => {
 	}
 });
 
-addEventListener('load', () => {
+function didLoad(fragment) {
+	if (fragment) {
+		jumpTo(fragment);
+	}
+
 	document.querySelectorAll(`a[href^="${pageStr}#"]`).forEach(el => {
 		const s = el.getAttribute('href');
 		el.setAttribute('href', s.replace(`${pageStr}`, ''))
@@ -37,4 +41,12 @@ addEventListener('load', () => {
 			goTo(el.getAttribute('href'));
 		})
 	})
-});
+
+	document.querySelector('nav').innerHTML = `
+		<ul>
+			<li onclick="goBack()">⇽</li>
+			<li onclick="reload()">⟳</li>
+			<li onclick="goForward()">⇾</li>
+		</ul>
+	`
+}
