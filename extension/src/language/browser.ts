@@ -14,34 +14,54 @@ export class GoplsBrowser {
 		this.panel.webview.onDidReceiveMessage(async (e) => {
 			switch (e.command) {
 				case 'navigate':
-					this.#push(e.url);
+					this.#navigate(e.url);
 					break;
 
 				case 'back':
-					this.#pop();
+					this.#back();
+					break;
+
+				case 'forward':
+					this.#forward();
 					break;
 			}
 		});
 
-		this.#push(url);
+		this.#navigate(url);
 	}
 
 	readonly #history: string[] = [];
+	readonly #unhistory: string[] = [];
 	#current?: string;
 
-	#push(url: string) {
+	#navigate(url: string) {
 		this.#load(url)
-			.then((r) => r !== false && this.#history.push(url))
+			.then((r) => {
+				if (r !== false) {
+					this.#history.push(url);
+					this.#unhistory.splice(0, this.#unhistory.length);
+				}
+			})
 			.catch((e) => this.#onError(e));
 	}
 
-	#pop() {
+	#back() {
 		if (this.#history.length < 2) {
 			return;
 		}
 
-		this.#history.pop();
+		this.#unhistory.push(this.#history.pop()!);
 		const url = this.#history[this.#history.length - 1];
+		this.#load(url).catch((e) => this.#onError(e));
+	}
+
+	#forward() {
+		if (this.#unhistory.length < 1) {
+			return;
+		}
+
+		const url = this.#unhistory.pop()!;
+		this.#history.push(url);
 		this.#load(url).catch((e) => this.#onError(e));
 	}
 
@@ -97,6 +117,7 @@ export class GoplsBrowser {
 
 					const goTo = (url) => vscode.postMessage({ command: 'navigate', url });
 					const goBack = () => vscode.postMessage({ command: 'back' });
+					const goForward = () => vscode.postMessage({ command: 'forward' });
 					const jumpTo = (hash) => location.hash = hash;
 
 					addEventListener('message', event => {
