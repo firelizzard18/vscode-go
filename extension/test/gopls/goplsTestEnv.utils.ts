@@ -66,6 +66,8 @@ export class FakeOutputChannel implements vscode.OutputChannel {
 // Currently, this works only in module-aware mode.
 export class Env {
 	public languageClient?: LanguageClient;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	public ctx: any = {};
 	public goCtx: GoExtensionContext = {};
 
 	private fakeOutputChannel?: FakeOutputChannel;
@@ -116,7 +118,7 @@ export class Env {
 		);
 		cfg.outputChannel = this.fakeOutputChannel; // inject our fake output channel.
 		this.goCtx.latestConfig = cfg;
-		this.languageClient = await buildLanguageClient(this.goCtx, cfg);
+		this.languageClient = await buildLanguageClient(this.ctx, this.goCtx, cfg);
 		if (!this.languageClient) {
 			throw new Error('Language client not initialized.');
 		}

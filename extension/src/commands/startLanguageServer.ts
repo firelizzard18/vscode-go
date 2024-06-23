@@ -85,7 +85,7 @@ export const startLanguageServer: CommandFactory = (ctx, goCtx) => {
 				return;
 			}
 
-			goCtx.languageClient = await buildLanguageClient(goCtx, buildLanguageClientOption(goCtx, cfg));
+			goCtx.languageClient = await buildLanguageClient(ctx, goCtx, buildLanguageClientOption(goCtx, cfg));
 			await goCtx.languageClient.start();
 			goCtx.serverInfo = toServerInfo(goCtx.languageClient.initializeResult);
 			goCtx.telemetryService = new TelemetryService(

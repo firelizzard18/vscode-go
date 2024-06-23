@@ -7,8 +7,14 @@ type Tail<T extends any[]> = T extends [any, ...infer Tail] ? Tail : never;
 
 export class GoplsBrowser {
 	readonly panel: vscode.WebviewPanel;
+	readonly #extensionUri: vscode.Uri;
 
-	constructor(url: string, ...options: Tail<Parameters<typeof vscode.window.createWebviewPanel>>) {
+	constructor(
+		ctx: vscode.ExtensionContext,
+		url: string,
+		...options: Tail<Parameters<typeof vscode.window.createWebviewPanel>>
+	) {
+		this.#extensionUri = ctx.extensionUri;
 		this.panel = vscode.window.createWebviewPanel('gopls', ...options);
 
 		this.panel.webview.onDidReceiveMessage(async (e) => {
@@ -23,6 +29,10 @@ export class GoplsBrowser {
 
 				case 'forward':
 					this.#forward();
+					break;
+
+				case 'reload':
+					this.#reload();
 					break;
 			}
 		});
@@ -65,14 +75,18 @@ export class GoplsBrowser {
 		this.#load(url).catch((e) => this.#onError(e));
 	}
 
+	#reload() {
+		this.#load(this.#history[this.#history.length - 1], true).catch((e) => this.#onError(e));
+	}
+
 	#onError(error: unknown) {
 		console.error('Navigation failed', error);
 	}
 
-	async #load(url: string) {
+	async #load(url: string, reload = false) {
 		const page = vscode.Uri.parse(url);
 		const pageStr = page.with({ fragment: '' }).toString(true);
-		if (pageStr === this.#current) {
+		if (!reload && pageStr === this.#current) {
 			this.panel.webview.postMessage({
 				command: 'jump',
 				fragment: page.fragment
@@ -106,95 +120,41 @@ export class GoplsBrowser {
 		fixLinks(head, addBase);
 		fixLinks(document.getElementById('pkgsite'), addBase);
 
-		// Add <base> to fix queries
-		head.appendChild(parse(`<base href="${base}" />`));
-
-		// Globals
-		head.appendChild(
-			parse(`
-				<script>
-					const vscode = acquireVsCodeApi();
-
-					const goTo = (url) => vscode.postMessage({ command: 'navigate', url });
-					const goBack = () => vscode.postMessage({ command: 'back' });
-					const goForward = () => vscode.postMessage({ command: 'forward' });
-					const jumpTo = (hash) => location.hash = hash;
-
-					addEventListener('message', event => {
-						switch (event.data.command) {
-							case 'jump':
-								jumpTo(event.data.fragment);
-								break;
-						}
-					});
-				</script>
-			`)
-		);
-
-		// Capture navigation
-		head.appendChild(
-			parse(`
-				<script>
-					addEventListener('load', () => {
-						document.querySelectorAll('a[href^="${pageStr}#"]').forEach(el => {
-							const s = el.getAttribute('href');
-							el.setAttribute('href', s.replace("${pageStr}", ''))
-						})
-
-						document.querySelectorAll('a[href^="#"]').forEach(el => {
-							el.addEventListener('click', (event) => {
-								goTo("${pageStr}" + el.getAttribute('href'));
-							})
-						})
-
-						document.querySelectorAll('a:not([href^="#"])').forEach(el => {
-							el.addEventListener('click', (event) => {
-								event.preventDefault();
-								event.stopImmediatePropagation();
-								goTo(el.getAttribute('href'));
-							})
-						})
-					})
-				</script>
-			`)
-		);
-
-		// Add <style> to apply VSCode's theme
-		document.appendChild(
-			parse(`
-				<style>
-					body {
-						background-color: var(--vscode-editor-background);
-						color: var(--vscode-editor-foreground);
-					}
-
-					header {
-						display: none;
-					}
-
-					pre {
-						background-color: var(--vscode-textCodeBlock-background);
-						border: 1px solid var(--vscode-widget-border);
-					}
-
-					a, a:link, a:visited, a code {
-						color: var(--vscode-textLink-foreground);
-					}
-
-					.clicky {
-						cursor: pointer;
-					}
-				</style>
-			`)
-		);
-
 		// If there's an anchor, jump to it
 		if (page.fragment) {
 			document.appendChild(parse(`<script>jumpTo("${page.fragment}")</script>`));
 		}
 
-		// Update the webview
+		// Add <base> to fix queries
+		head.appendChild(parse(`<base href="${base}" />`));
+
+		// Transfer variables
+		head.appendChild(parse(`<script>const pageStr = "${pageStr}";</script>`));
+
+		// Add resources
+		head.appendChild(parse(`<script src="${this.#contentUri('main.js')}"></script>`));
+		head.appendChild(parse(`<link rel="stylesheet" href="${this.#contentUri('main.css')}" />`));
+
+		document.appendChild(
+			parse(`
+				<nav>
+					<ul>
+						<li onclick="goBack()">⇽</li>
+						<li onclick="reload()">⟳</li>
+						<li onclick="goForward()">⇾</li>
+					</ul>
+				</nav>
+			`)
+		);
+
+		// Update the webview (trigger a reload)
+		this.panel.webview.html = ' ';
 		this.panel.webview.html = document.toString();
+	}
+
+	#contentUri(...path: string[]) {
+		const uri = vscode.Uri.joinPath(this.#extensionUri, 'webview', 'browser', ...path);
+		return this.panel.webview.asWebviewUri(uri);
 	}
 }
 

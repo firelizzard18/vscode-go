@@ -395,6 +395,7 @@ type VulncheckEvent = {
 // buildLanguageClient returns a language client built using the given language server config.
 // The returned language client need to be started before use.
 export async function buildLanguageClient(
+	ctx: vscode.ExtensionContext,
 	goCtx: GoExtensionContext,
 	cfg: BuildLanguageClientOption
 ): Promise<GoLanguageClient> {
@@ -724,7 +725,7 @@ export async function buildLanguageClient(
 
 						try {
 							if (/^http:\/\/127\.0\.0\.1:\d+\/gopls/.test(params.uri)) {
-								const browser = new GoplsBrowser(params.uri, 'gopls', vscode.ViewColumn.Active, {
+								new GoplsBrowser(ctx, params.uri, 'gopls', vscode.ViewColumn.Active, {
 									enableScripts: true,
 									retainContextWhenHidden: true,
 									enableFindWidget: true
