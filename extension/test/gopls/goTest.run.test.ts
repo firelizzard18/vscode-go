@@ -22,7 +22,7 @@ suite('Go Test Runner', () => {
 	suite('parseOutput', () => {
 		const ctx = MockExtensionContext.new();
 		suiteSetup(async () => {
-			testExplorer = GoTestExplorer.setup(ctx, {});
+			testExplorer = GoTestExplorer.new(ctx, {});
 		});
 		suiteTeardown(() => ctx.teardown());
 
@@ -68,7 +68,7 @@ suite('Go Test Runner', () => {
 		suiteSetup(async () => {
 			uri = Uri.file(path.join(fixtureDir, 'codelens', 'codelens2_test.go'));
 			await env.startGopls(uri.fsPath);
-			testExplorer = GoTestExplorer.setup(ctx, env.goCtx);
+			testExplorer = GoTestExplorer.new(ctx, env.goCtx);
 
 			await forceDidOpenTextDocument(workspace, testExplorer, uri);
 		});
@@ -189,7 +189,7 @@ suite('Go Test Runner', () => {
 			// (so initialize request doesn't include workspace dir info). The codelens directory was
 			// used in the previous test suite. Figure out why.
 			await env.startGopls(uri.fsPath, undefined, subTestDir);
-			testExplorer = GoTestExplorer.setup(ctx, env.goCtx);
+			testExplorer = GoTestExplorer.new(ctx, env.goCtx);
 			await forceDidOpenTextDocument(workspace, testExplorer, uri);
 
 			spy = sandbox.spy(testUtils, 'goTest');

@@ -234,7 +234,7 @@ suite('Go Test Explorer', () => {
 			// used in the previous test suite. Figure out why.
 			await env.startGopls(uri.fsPath, undefined, fixtureDir);
 
-			testExplorer = GoTestExplorer.setup(ctx, env.goCtx);
+			testExplorer = GoTestExplorer.new(ctx, env.goCtx);
 
 			document = await forceDidOpenTextDocument(workspace, testExplorer, uri);
 			const tests = testExplorer.resolver.find(document.uri).map((x) => x.id);
